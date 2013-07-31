@@ -22,13 +22,15 @@
       this.currentTrack = 0;
       return this.time = 0.0;
     };
+    Word.prototype.drawBackground = function(ctx) {
+      ctx.fillStyle = "#FFF";
+      ctx.fillRect(0, 0, config.dim * config.scale, config.dim * config.scale);
+      return drawBackground(ctx);
+    };
     Word.prototype.draw = function(ctx) {
       var step, that;
       that = this;
       this.init();
-      ctx.fillStyle = "#FFF";
-      ctx.fillRect(0, 0, config.dim * config.scale, config.dim * config.scale);
-      drawBackground(ctx);
       ctx.strokeStyle = "#000";
       ctx.fillStyle = "#000";
       ctx.lineWidth = 5;
@@ -36,7 +38,8 @@
         that.update(ctx);
         return setTimeout(step, 250);
       };
-      return requestAnimationFrame(step);
+      requestAnimationFrame(step);
+      return this.promise = $.Deferred();
     };
     Word.prototype.update = function(ctx) {
       var i, stroke, _i, _ref,
@@ -75,12 +78,15 @@
         if (this.currentTrack >= stroke.track.length - 1) {
           this.currentTrack = 0;
           this.currentStroke += 1;
-          return;
         }
       }
-      return requestAnimationFrame(function() {
-        return _this.update(ctx);
-      });
+      if (this.currentStroke >= this.strokes.length) {
+        return this.promise.resolve();
+      } else {
+        return requestAnimationFrame(function() {
+          return _this.update(ctx);
+        });
+      }
     };
     drawBackground = function(ctx) {
       var dim;
@@ -241,6 +247,9 @@
         return _results;
       });
       return {
+        drawBackground: function() {
+          return word.drawBackground(ctx);
+        },
         draw: function() {
           return word.draw(ctx);
         }

@@ -17,12 +17,21 @@
         svg: !isCanvasSupported()
       }, options);
       return this.each(function() {
+        var i, next, strokers;
         if (options.svg) {
           return window.WordStroker.raphael.strokeWords(this, words);
         } else {
-          return window.WordStroker.canvas.createWordsAndViews(this, words).forEach(function(word) {
-            return word.draw();
+          strokers = window.WordStroker.canvas.createWordsAndViews(this, words);
+          strokers.forEach(function(stroker) {
+            return stroker.drawBackground();
           });
+          i = 0;
+          next = function() {
+            if (i < strokers.length) {
+              return strokers[i++].draw().then(next);
+            }
+          };
+          return next();
         }
       }).data("strokeWords", {
         play: null
