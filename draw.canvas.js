@@ -6,6 +6,7 @@
     };
     config = {
       scale: 0.4,
+      contextScale: 0.25,
       dim: 2150,
       trackWidth: 150,
       updatesPerStep: 10
@@ -217,13 +218,12 @@
     createWordAndView = function(element, val) {
       var $canvas, canvas, ctx, word;
       $canvas = $("<canvas></canvas>");
-      $canvas.css('transform', 'scale(0.25)');
-      $canvas.css('transform-origin', '0 0');
       $(element).append($canvas);
       canvas = $canvas.get()[0];
-      canvas.width = config.dim * config.scale;
-      canvas.height = config.dim * config.scale;
+      canvas.width = config.dim * config.scale * config.contextScale;
+      canvas.height = config.dim * config.scale * config.contextScale;
       ctx = canvas.getContext("2d");
+      ctx.scale(config.contextScale, config.contextScale);
       word = new Word(val);
       fetchStrokeXml(word.utf8code, function(doc) {
         var index, outline, tracks, _i, _len, _ref, _results;
