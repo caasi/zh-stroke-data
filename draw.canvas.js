@@ -6,7 +6,7 @@
     };
     config = {
       scale: 0.4,
-      contextScale: 0.25,
+      styleScale: 0.25,
       dim: 2150,
       trackWidth: 150,
       updatesPerStep: 10
@@ -63,11 +63,11 @@
         }
         ctx.beginPath();
         ctx.arc((stroke.track[this.currentTrack].x + this.vector.x * this.time) * config.scale, (stroke.track[this.currentTrack].y + this.vector.y * this.time) * config.scale, (this.vector.size * 2) * config.scale, 0, 2 * Math.PI);
-        ctx.fill();
         if (this.time >= 1) {
           break;
         }
       }
+      ctx.fill();
       if (this.time >= 1.0) {
         ctx.restore();
         this.time = 0.0;
@@ -218,12 +218,13 @@
     createWordAndView = function(element, val) {
       var $canvas, canvas, ctx, word;
       $canvas = $("<canvas></canvas>");
+      $canvas.css("width", config.dim * config.scale * config.styleScale + "px");
+      $canvas.css("height", config.dim * config.scale * config.styleScale + "px");
       $(element).append($canvas);
       canvas = $canvas.get()[0];
-      canvas.width = config.dim * config.scale * config.contextScale;
-      canvas.height = config.dim * config.scale * config.contextScale;
+      canvas.width = config.dim * config.scale;
+      canvas.height = config.dim * config.scale;
       ctx = canvas.getContext("2d");
-      ctx.scale(config.contextScale, config.contextScale);
       word = new Word(val);
       fetchStrokeXml(word.utf8code, function(doc) {
         var index, outline, tracks, _i, _len, _ref, _results;
