@@ -1,53 +1,85 @@
 (function() {
   $(function() {
-    var Word, config, createWordAndView, createWordsAndViews, drawBackground, fetchStrokeXml, parseOutline, parseTrack, pathOutline;
-    fetchStrokeXml = function(code, cb) {
-      return $.get("utf8/" + code.toLowerCase() + ".xml", cb, "xml");
+    var Word, createWordAndView, createWordsAndViews, drawBackground, fetchStrokeXml, parseOutline, parseTrack, pathOutline;
+    fetchStrokeXml = function(code, success, fail) {
+      return $.get("utf8/" + code.toLowerCase() + ".xml", success, "xml").fail(fail);
     };
-    config = {
-      scale: 0.4,
-      styleScale: 0.25,
-      dim: 2150,
-      trackWidth: 150,
-      updatesPerStep: 10,
-      delays: {
-        stroke: 0.25,
-        word: 0.5
-      }
-    };
-    Word = function(val) {
+    Word = function(val, options) {
+      var $canvas;
+      this.options = $.extend({
+        dim: 2150,
+        scales: {
+          fill: 0.4,
+          style: 0.25
+        },
+        trackWidth: 150,
+        updatesPerStep: 10,
+        delays: {
+          stroke: 0.25,
+          word: 0.5
+        }
+      }, options);
       this.val = val;
       this.utf8code = escape(val).replace(/%u/, "");
       this.strokes = [];
-      return this.init();
+      this.canvas = document.createElement("canvas");
+      $canvas = $(this.canvas);
+      $canvas.css("width", this.styleWidth() + "px");
+      $canvas.css("height", this.styleHeight() + "px");
+      this.canvas.width = this.fillWidth();
+      this.canvas.height = this.fillHeight();
+      return this;
     };
     Word.prototype.init = function() {
       this.currentStroke = 0;
       this.currentTrack = 0;
       return this.time = 0.0;
     };
-    Word.prototype.drawBackground = function(ctx) {
-      ctx.fillStyle = "#FFF";
-      ctx.fillRect(0, 0, config.dim * config.scale, config.dim * config.scale);
-      return drawBackground(ctx);
+    Word.prototype.width = function() {
+      return this.options.dim;
     };
-    Word.prototype.draw = function(ctx) {
-      var _this = this;
+    Word.prototype.height = function() {
+      return this.options.dim;
+    };
+    Word.prototype.fillWidth = function() {
+      return this.width() * this.options.scales.fill;
+    };
+    Word.prototype.fillHeight = function() {
+      return this.height() * this.options.scales.fill;
+    };
+    Word.prototype.styleWidth = function() {
+      return this.fillWidth() * this.options.scales.style;
+    };
+    Word.prototype.styleHeight = function() {
+      return this.fillHeight() * this.options.scales.style;
+    };
+    Word.prototype.drawBackground = function() {
+      var ctx;
+      ctx = this.canvas.getContext("2d");
+      ctx.fillStyle = "#FFF";
+      ctx.fillRect(0, 0, this.fillWidth(), this.fillHeight());
+      return drawBackground(ctx, this.fillWidth());
+    };
+    Word.prototype.draw = function() {
+      var ctx,
+        _this = this;
       this.init();
+      ctx = this.canvas.getContext("2d");
       ctx.strokeStyle = "#000";
       ctx.fillStyle = "#000";
       ctx.lineWidth = 5;
       requestAnimationFrame(function() {
-        return _this.update(ctx);
+        return _this.update();
       });
       return this.promise = $.Deferred();
     };
-    Word.prototype.update = function(ctx) {
-      var delay, i, stroke, _i, _ref,
+    Word.prototype.update = function() {
+      var ctx, delay, i, stroke, _i, _ref,
         _this = this;
       if (this.currentStroke >= this.strokes.length) {
         return;
       }
+      ctx = this.canvas.getContext("2d");
       stroke = this.strokes[this.currentStroke];
       if (this.time === 0.0) {
         this.vector = {
@@ -57,21 +89,21 @@
         };
         ctx.save();
         ctx.beginPath();
-        pathOutline(ctx, stroke.outline);
+        pathOutline(ctx, stroke.outline, this.options.scales.fill);
         ctx.clip();
       }
-      for (i = _i = 1, _ref = config.updatesPerStep; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
+      for (i = _i = 1, _ref = this.options.updatesPerStep; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
         this.time += 0.02;
         if (this.time >= 1) {
           this.time = 1;
         }
         ctx.beginPath();
-        ctx.arc((stroke.track[this.currentTrack].x + this.vector.x * this.time) * config.scale, (stroke.track[this.currentTrack].y + this.vector.y * this.time) * config.scale, (this.vector.size * 2) * config.scale, 0, 2 * Math.PI);
+        ctx.arc((stroke.track[this.currentTrack].x + this.vector.x * this.time) * this.options.scales.fill, (stroke.track[this.currentTrack].y + this.vector.y * this.time) * this.options.scales.fill, (this.vector.size * 2) * this.options.scales.fill, 0, 2 * Math.PI);
+        ctx.fill();
         if (this.time >= 1) {
           break;
         }
       }
-      ctx.fill();
       delay = 0;
       if (this.time >= 1.0) {
         ctx.restore();
@@ -81,29 +113,27 @@
       if (this.currentTrack >= stroke.track.length - 1) {
         this.currentTrack = 0;
         this.currentStroke += 1;
-        delay = config.delays.stroke;
+        delay = this.options.delays.stroke;
       }
       if (this.currentStroke >= this.strokes.length) {
         return setTimeout(function() {
           return _this.promise.resolve();
-        }, config.delays.word * 1000);
+        }, this.options.delays.word * 1000);
       } else {
         if (delay) {
           return setTimeout(function() {
             return requestAnimationFrame(function() {
-              return _this.update(ctx);
+              return _this.update();
             });
           }, delay * 1000);
         } else {
           return requestAnimationFrame(function() {
-            return _this.update(ctx);
+            return _this.update();
           });
         }
       }
     };
-    drawBackground = function(ctx) {
-      var dim;
-      dim = config.dim * config.scale;
+    drawBackground = function(ctx, dim) {
       ctx.strokeStyle = "#A33";
       ctx.beginPath();
       ctx.lineWidth = 10;
@@ -125,23 +155,23 @@
       ctx.lineTo(dim / 3 * 2, dim);
       return ctx.stroke();
     };
-    pathOutline = function(ctx, outline) {
+    pathOutline = function(ctx, outline, scale) {
       var path, _i, _len, _results;
       _results = [];
       for (_i = 0, _len = outline.length; _i < _len; _i++) {
         path = outline[_i];
         switch (path.type) {
           case "M":
-            _results.push(ctx.moveTo(path.x * config.scale, path.y * config.scale));
+            _results.push(ctx.moveTo(path.x * scale, path.y * scale));
             break;
           case "L":
-            _results.push(ctx.lineTo(path.x * config.scale, path.y * config.scale));
+            _results.push(ctx.lineTo(path.x * scale, path.y * scale));
             break;
           case "C":
-            _results.push(ctx.bezierCurveTo(path.begin.x * config.scale, path.begin.y * config.scale, path.mid.x * config.scale, path.mid.y * config.scale, path.end.x * config.scale, path.end.y * config.scale));
+            _results.push(ctx.bezierCurveTo(path.begin.x * scale, path.begin.y * scale, path.mid.x * scale, path.mid.y * scale, path.end.x * scale, path.end.y * scale));
             break;
           case "Q":
-            _results.push(ctx.quadraticCurveTo(path.begin.x * config.scale, path.begin.y * config.scale, path.end.x * config.scale, path.end.y * config.scale));
+            _results.push(ctx.quadraticCurveTo(path.begin.x * scale, path.begin.y * scale, path.end.x * scale, path.end.y * scale));
             break;
           default:
             _results.push(void 0);
@@ -210,7 +240,7 @@
       }
       return path;
     };
-    parseTrack = function(track) {
+    parseTrack = function(track, defaultWidth) {
       var a, node, path, _i, _len, _ref;
       path = [];
       _ref = track.childNodes;
@@ -228,24 +258,17 @@
             path.push({
               x: parseFloat(a.x.value),
               y: parseFloat(a.y.value),
-              size: a.size ? parseFloat(a.size.value) : config.trackWidth
+              size: a.size ? parseFloat(a.size.value) : defaultWidth
             });
         }
       }
       return path;
     };
-    createWordAndView = function(element, val) {
-      var $canvas, canvas, ctx, promise, word;
+    createWordAndView = function(element, val, options) {
+      var promise, word;
       promise = jQuery.Deferred();
-      $canvas = $("<canvas></canvas>");
-      $canvas.css("width", config.dim * config.scale * config.styleScale + "px");
-      $canvas.css("height", config.dim * config.scale * config.styleScale + "px");
-      $(element).append($canvas);
-      canvas = $canvas.get()[0];
-      canvas.width = config.dim * config.scale;
-      canvas.height = config.dim * config.scale;
-      ctx = canvas.getContext("2d");
-      word = new Word(val);
+      word = new Word(val, options);
+      $(element).append(word.canvas);
       fetchStrokeXml(word.utf8code, function(doc) {
         var index, outline, tracks, _i, _len, _ref, _results;
         tracks = doc.getElementsByTagName("Track");
@@ -255,24 +278,38 @@
           outline = _ref[index];
           word.strokes.push({
             outline: parseOutline(outline),
-            track: parseTrack(tracks[index])
+            track: parseTrack(tracks[index], word.options.trackWidth)
           });
           _results.push(promise.resolve({
             drawBackground: function() {
-              return word.drawBackground(ctx);
+              return word.drawBackground();
             },
             draw: function() {
-              return word.draw(ctx);
+              return word.draw();
             }
           }));
         }
         return _results;
+      }, function() {
+        return promise.resolve({
+          drawBackground: function() {
+            return word.drawBackground();
+          },
+          draw: function() {
+            var p;
+            p = jQuery.Deferred();
+            $(word.canvas).fadeTo("fast", 0.5, function() {
+              return p.resolve();
+            });
+            return p;
+          }
+        });
       });
       return promise;
     };
-    createWordsAndViews = function(element, words) {
+    createWordsAndViews = function(element, words, options) {
       return Array.prototype.map.call(words, function(word) {
-        return createWordAndView(element, word);
+        return createWordAndView(element, word, options);
       });
     };
     window.WordStroker || (window.WordStroker = {});
