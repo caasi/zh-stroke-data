@@ -9,7 +9,11 @@
       styleScale: 0.25,
       dim: 2150,
       trackWidth: 150,
-      updatesPerStep: 10
+      updatesPerStep: 10,
+      delays: {
+        stroke: 0.25,
+        word: 0.5
+      }
     };
     Word = function(val) {
       this.val = val;
@@ -28,21 +32,18 @@
       return drawBackground(ctx);
     };
     Word.prototype.draw = function(ctx) {
-      var step, that;
-      that = this;
+      var _this = this;
       this.init();
       ctx.strokeStyle = "#000";
       ctx.fillStyle = "#000";
       ctx.lineWidth = 5;
-      step = function() {
-        that.update(ctx);
-        return setTimeout(step, 250);
-      };
-      requestAnimationFrame(step);
+      requestAnimationFrame(function() {
+        return _this.update(ctx);
+      });
       return this.promise = $.Deferred();
     };
     Word.prototype.update = function(ctx) {
-      var i, stroke, _i, _ref,
+      var delay, i, stroke, _i, _ref,
         _this = this;
       if (this.currentStroke >= this.strokes.length) {
         return;
@@ -71,21 +72,33 @@
         }
       }
       ctx.fill();
+      delay = 0;
       if (this.time >= 1.0) {
         ctx.restore();
         this.time = 0.0;
         this.currentTrack += 1;
-        if (this.currentTrack >= stroke.track.length - 1) {
-          this.currentTrack = 0;
-          this.currentStroke += 1;
-        }
+      }
+      if (this.currentTrack >= stroke.track.length - 1) {
+        this.currentTrack = 0;
+        this.currentStroke += 1;
+        delay = config.delays.stroke;
       }
       if (this.currentStroke >= this.strokes.length) {
-        return this.promise.resolve();
+        return setTimeout(function() {
+          return _this.promise.resolve();
+        }, config.delays.word * 1000);
       } else {
-        return requestAnimationFrame(function() {
-          return _this.update(ctx);
-        });
+        if (delay) {
+          return setTimeout(function() {
+            return requestAnimationFrame(function() {
+              return _this.update(ctx);
+            });
+          }, delay * 1000);
+        } else {
+          return requestAnimationFrame(function() {
+            return _this.update(ctx);
+          });
+        }
       }
     };
     drawBackground = function(ctx) {
@@ -222,7 +235,8 @@
       return path;
     };
     createWordAndView = function(element, val) {
-      var $canvas, canvas, ctx, word;
+      var $canvas, canvas, ctx, promise, word;
+      promise = jQuery.Deferred();
       $canvas = $("<canvas></canvas>");
       $canvas.css("width", config.dim * config.scale * config.styleScale + "px");
       $canvas.css("height", config.dim * config.scale * config.styleScale + "px");
@@ -239,21 +253,22 @@
         _results = [];
         for (index = _i = 0, _len = _ref.length; _i < _len; index = ++_i) {
           outline = _ref[index];
-          _results.push(word.strokes.push({
+          word.strokes.push({
             outline: parseOutline(outline),
             track: parseTrack(tracks[index])
+          });
+          _results.push(promise.resolve({
+            drawBackground: function() {
+              return word.drawBackground(ctx);
+            },
+            draw: function() {
+              return word.draw(ctx);
+            }
           }));
         }
         return _results;
       });
-      return {
-        drawBackground: function() {
-          return word.drawBackground(ctx);
-        },
-        draw: function() {
-          return word.draw(ctx);
-        }
-      };
+      return promise;
     };
     createWordsAndViews = function(element, words) {
       return Array.prototype.map.call(words, function(word) {
