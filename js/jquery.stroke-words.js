@@ -17,7 +17,11 @@
         svg: !isCanvasSupported()
       }, options);
       return this.each(function() {
+<<<<<<< HEAD:js/jquery.stroke-words.js
         var promises;
+=======
+        var i, next, promises;
+>>>>>>> 4b99a414cddefd9b8076f09090bd88ddfdfe05b4:jquery.stroke-words.js
         if (options.svg) {
           return window.WordStroker.raphael.strokeWords(this, words);
         } else {
@@ -27,6 +31,7 @@
               return word.drawBackground();
             });
           });
+<<<<<<< HEAD:js/jquery.stroke-words.js
           return promises.reduceRight(function(next, current) {
             return function() {
               return current.then(function(word) {
@@ -34,6 +39,17 @@
               });
             };
           }, null)();
+=======
+          i = 0;
+          next = function() {
+            if (i < promises.length) {
+              return promises[i++].then(function(word) {
+                return word.draw().then(next);
+              });
+            }
+          };
+          return next();
+>>>>>>> 4b99a414cddefd9b8076f09090bd88ddfdfe05b4:jquery.stroke-words.js
         }
       }).data("strokeWords", {
         play: null
