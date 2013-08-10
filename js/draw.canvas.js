@@ -1,40 +1,6 @@
 (function() {
   $(function() {
-    var StrokeData, Word, demoMatrix, drawBackground, drawElementWithWord, drawElementWithWords, forEach, internalOptions, pathOutline;
-    forEach = Array.prototype.forEach;
-    StrokeData = void 0;
-    (function() {
-      var buffer, dirs, source;
-      buffer = {};
-      source = "xml";
-      dirs = {
-        "xml": "./utf8/",
-        "json": "./json/"
-      };
-      return StrokeData = {
-        source: function(val) {
-          if (val === "json" || val === "xml") {
-            return source = val;
-          }
-        },
-        get: function(str, success, fail) {
-          return forEach.call(str, function(c) {
-            var utf8code;
-            if (!buffer[c]) {
-              utf8code = escape(c).replace(/%u/, "").toLowerCase();
-              return WordStroker.utils.fetchStrokeJSONFromXml(dirs[source] + utf8code + "." + source, function(json) {
-                buffer[c] = json;
-                return typeof success === "function" ? success(json) : void 0;
-              }, function(err) {
-                return typeof fail === "function" ? fail(err) : void 0;
-              });
-            } else {
-              return typeof success === "function" ? success(buffer[c]) : void 0;
-            }
-          });
-        }
-      };
-    })();
+    var Word, demoMatrix, drawBackground, drawElementWithWord, drawElementWithWords, internalOptions, pathOutline;
     internalOptions = {
       dim: 2150,
       trackWidth: 150
@@ -216,12 +182,12 @@
       }
       return _results;
     };
-    drawElementWithWord = function(element, val, options) {
+    drawElementWithWord = function(element, cp, options) {
       var promise, word;
       promise = jQuery.Deferred();
       word = new Word(options);
       $(element).append(word.canvas);
-      StrokeData.get(val, function(json) {
+      WordStroker.utils.StrokeData.get(cp, function(json) {
         return promise.resolve({
           drawBackground: function() {
             return word.drawBackground();
@@ -254,13 +220,12 @@
       return promise;
     };
     drawElementWithWords = function(element, words, options) {
-      return Array.prototype.map.call(words, function(word) {
-        return drawElementWithWord(element, word, options);
+      return WordStroker.utils.sortSurrogates(words).map(function(cp) {
+        return drawElementWithWord(element, cp, options);
       });
     };
     window.WordStroker || (window.WordStroker = {});
     return window.WordStroker.canvas = {
-      StrokeData: StrokeData,
       Word: Word,
       drawElementWithWords: drawElementWithWords
     };

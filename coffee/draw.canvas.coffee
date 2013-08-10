@@ -1,36 +1,4 @@
 $ ->
-  #map = Array.prototype.map
-  forEach = Array.prototype.forEach
-
-  # expose StrokeData
-  StrokeData = undefined
-
-  do ->
-    buffer = {}
-    source = "xml" # "xml" or "json"
-    dirs =
-      "xml": "./utf8/"
-      "json": "./json/"
-    StrokeData =
-      source: (val) ->
-        source = val if val is "json" or val is "xml"
-      get: (str, success, fail) ->
-        forEach.call str, (c) ->
-          if not buffer[c]
-            utf8code = escape(c).replace(/%u/, "").toLowerCase()
-            WordStroker.utils.fetchStrokeJSONFromXml(
-              dirs[source] + utf8code + "." + source,
-              # success
-              (json) ->
-                buffer[c] = json
-                success? json
-              # fail
-              (err) ->
-                fail? err
-            )
-          else
-            success? buffer[c]
-
   internalOptions =
     dim: 2150
     trackWidth: 150
@@ -207,12 +175,12 @@ $ ->
             path.end.y
           )
 
-  drawElementWithWord = (element, val, options) ->
+  drawElementWithWord = (element, cp, options) ->
     promise = jQuery.Deferred()
     word = new Word(options)
     $(element).append word.canvas
-    StrokeData.get(
-      val,
+    WordStroker.utils.StrokeData.get(
+      cp,
       # success
       (json) ->
         promise.resolve {
@@ -239,11 +207,10 @@ $ ->
     promise
 
   drawElementWithWords = (element, words, options) ->
-    Array.prototype.map.call words, (word) ->
-      return drawElementWithWord element, word, options
+    WordStroker.utils.sortSurrogates(words).map (cp) ->
+      drawElementWithWord element, cp, options
 
   window.WordStroker or= {}
   window.WordStroker.canvas =
-    StrokeData: StrokeData
     Word: Word
     drawElementWithWords: drawElementWithWords
