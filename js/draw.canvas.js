@@ -1,11 +1,46 @@
 (function() {
   $(function() {
-    var Word, createWordAndView, createWordsAndViews, drawBackground, internalOptions, pathOutline;
+    var StrokeData, Word, demoMatrix, drawBackground, drawElementWithWord, drawElementWithWords, forEach, internalOptions, pathOutline;
+    forEach = Array.prototype.forEach;
+    StrokeData = void 0;
+    (function() {
+      var buffer, dirs, source;
+      buffer = {};
+      source = "xml";
+      dirs = {
+        "xml": "./utf8/",
+        "json": "./json/"
+      };
+      return StrokeData = {
+        source: function(val) {
+          if (val === "json" || val === "xml") {
+            return source = val;
+          }
+        },
+        get: function(str, success, fail) {
+          return forEach.call(str, function(c) {
+            var utf8code;
+            if (!buffer[c]) {
+              utf8code = escape(c).replace(/%u/, "").toLowerCase();
+              return WordStroker.utils.fetchStrokeJSONFromXml(dirs[source] + utf8code + "." + source, function(json) {
+                buffer[c] = json;
+                return typeof success === "function" ? success(json) : void 0;
+              }, function(err) {
+                return typeof fail === "function" ? fail(err) : void 0;
+              });
+            } else {
+              return typeof success === "function" ? success(buffer[c]) : void 0;
+            }
+          });
+        }
+      };
+    })();
     internalOptions = {
       dim: 2150,
       trackWidth: 150
     };
-    Word = function(val, options) {
+    demoMatrix = [1, 0, 0, 1, 100, 100];
+    Word = function(options) {
       var $canvas;
       this.options = $.extend({
         scales: {
@@ -18,15 +53,14 @@
           word: 0.5
         }
       }, options, internalOptions);
-      this.val = val;
-      this.utf8code = escape(val).replace(/%u/, "");
-      this.strokes = [];
-      this.canvas = document.createElement("canvas");
-      $canvas = $(this.canvas);
+      this.matrix = [this.options.scales.fill, 0, 0, this.options.scales.fill, 0, 0];
+      this.myCanvas = document.createElement("canvas");
+      $canvas = $(this.myCanvas);
       $canvas.css("width", this.styleWidth() + "px");
       $canvas.css("height", this.styleHeight() + "px");
-      this.canvas.width = this.fillWidth();
-      this.canvas.height = this.fillHeight();
+      this.myCanvas.width = this.fillWidth();
+      this.myCanvas.height = this.fillHeight();
+      this.canvas = this.myCanvas;
       return this;
     };
     Word.prototype.init = function() {
@@ -52,17 +86,20 @@
     Word.prototype.styleHeight = function() {
       return this.fillHeight() * this.options.scales.style;
     };
-    Word.prototype.drawBackground = function() {
+    Word.prototype.drawBackground = function(canvas) {
       var ctx;
+      this.canvas = canvas ? canvas : this.myCanvas;
       ctx = this.canvas.getContext("2d");
       ctx.fillStyle = "#FFF";
       ctx.fillRect(0, 0, this.fillWidth(), this.fillHeight());
       return drawBackground(ctx, this.fillWidth());
     };
-    Word.prototype.draw = function() {
+    Word.prototype.draw = function(strokeJSON, canvas) {
       var ctx,
         _this = this;
       this.init();
+      this.strokes = strokeJSON;
+      this.canvas = canvas ? canvas : this.myCanvas;
       ctx = this.canvas.getContext("2d");
       ctx.strokeStyle = "#000";
       ctx.fillStyle = "#000";
@@ -79,6 +116,7 @@
         return;
       }
       ctx = this.canvas.getContext("2d");
+      ctx.setTransform.apply(ctx, this.matrix);
       stroke = this.strokes[this.currentStroke];
       if (this.time === 0.0) {
         this.vector = {
@@ -88,7 +126,7 @@
         };
         ctx.save();
         ctx.beginPath();
-        pathOutline(ctx, stroke.outline, this.options.scales.fill);
+        pathOutline(ctx, stroke.outline);
         ctx.clip();
       }
       for (i = _i = 1, _ref = this.options.updatesPerStep; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
@@ -97,7 +135,7 @@
           this.time = 1;
         }
         ctx.beginPath();
-        ctx.arc((stroke.track[this.currentTrack].x + this.vector.x * this.time) * this.options.scales.fill, (stroke.track[this.currentTrack].y + this.vector.y * this.time) * this.options.scales.fill, (this.vector.size * 2) * this.options.scales.fill, 0, 2 * Math.PI);
+        ctx.arc(stroke.track[this.currentTrack].x + this.vector.x * this.time, stroke.track[this.currentTrack].y + this.vector.y * this.time, this.vector.size * 2, 0, 2 * Math.PI);
         ctx.fill();
         if (this.time >= 1) {
           break;
@@ -154,23 +192,23 @@
       ctx.lineTo(dim / 3 * 2, dim);
       return ctx.stroke();
     };
-    pathOutline = function(ctx, outline, scale) {
+    pathOutline = function(ctx, outline) {
       var path, _i, _len, _results;
       _results = [];
       for (_i = 0, _len = outline.length; _i < _len; _i++) {
         path = outline[_i];
         switch (path.type) {
           case "M":
-            _results.push(ctx.moveTo(path.x * scale, path.y * scale));
+            _results.push(ctx.moveTo(path.x, path.y));
             break;
           case "L":
-            _results.push(ctx.lineTo(path.x * scale, path.y * scale));
+            _results.push(ctx.lineTo(path.x, path.y));
             break;
           case "C":
-            _results.push(ctx.bezierCurveTo(path.begin.x * scale, path.begin.y * scale, path.mid.x * scale, path.mid.y * scale, path.end.x * scale, path.end.y * scale));
+            _results.push(ctx.bezierCurveTo(path.begin.x, path.begin.y, path.mid.x, path.mid.y, path.end.x, path.end.y));
             break;
           case "Q":
-            _results.push(ctx.quadraticCurveTo(path.begin.x * scale, path.begin.y * scale, path.end.x * scale, path.end.y * scale));
+            _results.push(ctx.quadraticCurveTo(path.begin.x, path.begin.y, path.end.x, path.end.y));
             break;
           default:
             _results.push(void 0);
@@ -178,19 +216,18 @@
       }
       return _results;
     };
-    createWordAndView = function(element, val, options) {
+    drawElementWithWord = function(element, val, options) {
       var promise, word;
       promise = jQuery.Deferred();
-      word = new Word(val, options);
+      word = new Word(options);
       $(element).append(word.canvas);
-      WordStroker.utils.fetchStrokeJSONFromXml("utf8/" + word.utf8code.toLowerCase() + ".xml", function(json) {
-        word.strokes = json;
+      StrokeData.get(val, function(json) {
         return promise.resolve({
           drawBackground: function() {
             return word.drawBackground();
           },
           draw: function() {
-            return word.draw();
+            return word.draw(json);
           },
           remove: function() {
             return $(word.canvas).remove();
@@ -216,15 +253,16 @@
       });
       return promise;
     };
-    createWordsAndViews = function(element, words, options) {
+    drawElementWithWords = function(element, words, options) {
       return Array.prototype.map.call(words, function(word) {
-        return createWordAndView(element, word, options);
+        return drawElementWithWord(element, word, options);
       });
     };
     window.WordStroker || (window.WordStroker = {});
     return window.WordStroker.canvas = {
+      StrokeData: StrokeData,
       Word: Word,
-      createWordsAndViews: createWordsAndViews
+      drawElementWithWords: drawElementWithWords
     };
   });
 
