@@ -121,6 +121,7 @@ $ ->
       delay = @options.delays.stroke
     # did word stroked
     if @currentStroke >= @strokes.length
+      return @promise.resolve() unless @options.delays.word
       setTimeout =>
         @promise.resolve()
       , @options.delays.word * 1000
@@ -130,7 +131,7 @@ $ ->
           requestAnimationFrame => @update()
         , delay * 1000
       else
-        requestAnimationFrame => @update()
+        @update()
 
   drawBackground = (ctx, dim) ->
     ctx.strokeStyle = "#A33"
@@ -188,17 +189,16 @@ $ ->
     data = WordStroker.utils.StrokeData
       url: options.url
       dataType: options.dataType
-    pp = jQuery.Deferred()
     return {
-      promise: pp
-      load: () ->
+      load: (p) ->
+        promise = p or $.Deferred()
         $word.append $loader
         data.get(
           word.cp,
           # success
           (json) ->
             $loader.remove()
-            pp.resolve {
+            promise.resolve {
               drawBackground: ->
                 do stroker.drawBackground
               draw: ->
@@ -209,7 +209,7 @@ $ ->
           # fail
           , ->
             $loader.remove()
-            pp.resolve {
+            promise.resolve {
               drawBackground: ->
                 do stroker.drawBackground
               draw: ->
@@ -222,9 +222,9 @@ $ ->
           , (e) ->
             if e.lengthComputable
               $loader.find("> div").css("width", e.loaded / e.total * 100 + "%")
-            pp.notifyWith e, [e, word.text]
+            promise.notifyWith e, [e, word.text]
         )
-        pp
+        promise
     }
 
   drawElementWithWords = (element, words, options) ->
