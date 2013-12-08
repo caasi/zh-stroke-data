@@ -130,7 +130,7 @@ getBinary = (path, success, fail, progress) ->
   xhr.onprogress = progress
   xhr.onreadystatechange = (e) ->
     if @readyState is 4
-      if @status is 200
+      if @status is 200 or @status is 0
         success? this.response
       else
         fail? @status
